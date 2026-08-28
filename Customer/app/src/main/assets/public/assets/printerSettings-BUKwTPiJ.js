@@ -1,0 +1,1 @@
+import{$ as e,Q as t}from"./App-8ZZSJ30u.js";export{t as loadPrinterSettings,e as resolvePrinterForRole};

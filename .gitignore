@@ -1,0 +1,37 @@
+# ============================================================================
+# What is NOT ignored here is the whole point of this repository.
+#
+# A Capacitor project's own .gitignore excludes capacitor-cordova-android-plugins/
+# and app/src/main/assets/public/ because `cap sync` regenerates them from
+# node_modules. This repository has no node_modules and never runs cap sync —
+# it exists so that a restaurant's APK can be built with nothing but Android
+# Studio. So those directories are COMMITTED here, deliberately.
+#
+# The failure that came from ignoring them:
+#
+#   Could not read script '...\capacitor-cordova-android-plugins\
+#   cordova.variables.gradle' as it does not exist.
+#
+# Gradle's settings.gradle includes that project unconditionally, so a checkout
+# without it cannot be configured, let alone built.
+# ============================================================================
+
+# Build output — regenerated every time, never committed.
+build/
+.gradle/
+*.apk
+*.aab
+*.iml
+
+# Machine-specific: Android Studio writes this itself on first open, pointing
+# at wherever that machine keeps its SDK.
+local.properties
+
+# Signing material must never be in git.
+*.keystore
+*.jks
+google-services.json
+
+# Editors
+.idea/
+.DS_Store

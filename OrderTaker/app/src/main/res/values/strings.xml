@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DT Order Taker</string>
+    <string name="title_activity_main">DT Order Taker</string>
+    <string name="package_name">com.digitaltarget.dtordertaker</string>
+    <string name="custom_url_scheme">com.digitaltarget.dtordertaker</string>
+</resources>

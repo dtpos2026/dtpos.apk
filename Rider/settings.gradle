@@ -1,0 +1,7 @@
+include ':app'
+
+// The Capacitor runtime is vendored in ../libs and committed, so this project
+// builds with nothing but Android Studio: no npm, no node_modules, no
+// `cap sync`. See docs/WHY-VENDORED.md.
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('../libs/capacitor')

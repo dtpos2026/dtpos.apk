@@ -1,0 +1,10 @@
+{
+  "appId": "com.digitaltarget.dtordertaker",
+  "appName": "DT Order Taker",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https",
+    "url": "https://digitaltarget.digital/#/order-taker",
+    "cleartext": false
+  }
+}

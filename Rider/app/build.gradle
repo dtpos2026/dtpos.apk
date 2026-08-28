@@ -1,0 +1,50 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.digitaltarget.dtrider"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.digitaltarget.dtrider"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        aaptOptions {
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    // Release signing comes from the environment, never from a keystore or a
+    // password committed here. With the variables absent the block is not
+    // declared at all, so a debug build still works and a release build fails
+    // loudly at signing rather than quietly producing an APK nobody can install.
+    signingConfigs {
+        if (System.getenv('DT_KEYSTORE_PATH')) {
+            release {
+                storeFile     file(System.getenv('DT_KEYSTORE_PATH'))
+                storePassword System.getenv('DT_KEYSTORE_PASSWORD')
+                keyAlias      System.getenv('DT_KEY_ALIAS')
+                keyPassword   System.getenv('DT_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv('DT_KEYSTORE_PATH')) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+}

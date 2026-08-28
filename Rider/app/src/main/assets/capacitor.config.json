@@ -1,0 +1,10 @@
+{
+  "appId": "com.digitaltarget.dtrider",
+  "appName": "DT Rider",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https",
+    "url": "https://digitaltarget.digital/#/rider-portal",
+    "cleartext": false
+  }
+}

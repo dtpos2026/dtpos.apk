@@ -1,0 +1,1 @@
+var e=[`cloudFk-foreign-key-mapping`,`settings-save-no-throw`,`cloudflare-workers-env-bindings`,`order-document-columns`,`fail-safe-sync-merge`];function t(){try{console.info(`%cDT-POS-1.25.21%c  ${e.join(` | `)}`,`background:#4f46e5;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold`,`color:#666`)}catch{}}export{t as logBuildStamp};

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DT Rider</string>
+    <string name="title_activity_main">DT Rider</string>
+    <string name="package_name">com.digitaltarget.dtrider</string>
+    <string name="custom_url_scheme">com.digitaltarget.dtrider</string>
+</resources>

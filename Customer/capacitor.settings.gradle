@@ -1,0 +1,9 @@
+// Vendored, not generated. `cap sync` in the POS repo writes paths into
+// ../../node_modules; this repository has no node_modules and must never need
+// one, so the two Capacitor library modules live in ../libs and are committed.
+// See docs/WHY-VENDORED.md.
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('../libs/capacitor')
+
+include ':capacitor-push-notifications'
+project(':capacitor-push-notifications').projectDir = new File('../libs/capacitor-push-notifications')

@@ -1,0 +1,1 @@
+function e(e){return`pos-offline-session::`+e.trim().toLowerCase()}function t(t){try{let n=localStorage.getItem(e(t));return n?JSON.parse(n):null}catch{return null}}function n(e){let n=t(e);return n?Date.now()-n.cachedAt<2592e6:!1}export{n as canOfflineLogin,t as readCachedSession};

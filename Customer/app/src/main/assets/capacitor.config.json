@@ -1,0 +1,13 @@
+{
+  "appId": "com.digitaltarget.dtcustomer",
+  "appName": "BUTT BBQ",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}
