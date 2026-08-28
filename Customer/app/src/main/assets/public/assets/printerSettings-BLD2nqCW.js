@@ -1,0 +1,1 @@
+import{$ as e,Q as t}from"./App-Df4vTM7f.js";export{t as loadPrinterSettings,e as resolvePrinterForRole};

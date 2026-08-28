@@ -145,6 +145,29 @@ for (const app of APPS) {
     const tenant = /location\.hash='#\/order\/([0-9a-f-]{36})'/.exec(html)?.[1];
     if (tenant) ok(`opens into restaurant ${tenant}`);
     else console.log('  warn  no restaurant bound — the app will show a picker');
+
+    // ---- the version, in the two places that must agree
+    //
+    // The bundle cannot read Android's versionName, so it carries its own copy
+    // in dt-app.json and the update check compares THAT with what the
+    // restaurant published. If the two drift, the app either nags about an
+    // update it already has or stays silent about one it needs.
+    const infoPath = join(d, 'app/src/main/assets/public/dt-app.json');
+    const gradleVersion = /versionName\s+"([^"]+)"/.exec(gradle)?.[1] ?? null;
+    if (!existsSync(infoPath)) {
+      bad('dt-app.json is missing — the app cannot know its own version, so the\n' +
+          '        update check is inert. Run tools/brand.mjs, or rebuild the bundle.');
+    } else {
+      let info = {};
+      try { info = JSON.parse(readFileSync(infoPath, 'utf8')); }
+      catch (e) { bad(`dt-app.json is not valid JSON: ${e.message}`); }
+      if (!info.appVersion) {
+        bad('dt-app.json carries no appVersion — the update check can never fire');
+      } else if (info.appVersion !== gradleVersion) {
+        bad(`dt-app.json says ${info.appVersion} but versionName is ${gradleVersion}.\n` +
+            '        Set both with: tools/brand.mjs --version <x.y.z>');
+      } else ok(`version agrees in both places (${gradleVersion})`);
+    }
   } else {
     if (!cfg.server?.url) bad('a staff app must name the site it opens');
     else if (!/^https:\/\//.test(cfg.server.url)) bad(`server.url must be https: ${cfg.server.url}`);

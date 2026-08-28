@@ -258,9 +258,35 @@ if (app.bundled && opt.tenant) {
     const inject = `<script>(function(){try{if(!location.hash||location.hash==='#/'){${boot};}}catch(e){}})();</script>`;
     return raw.replace('</head>', `${inject}</head>`);
   });
-  edit('app/src/main/assets/public/dt-app.json', () =>
-    JSON.stringify({ tenantId: opt.tenant }, null, 2) + '\n');
   console.log(`[brand] the app opens into restaurant ${opt.tenant}`);
+}
+
+// ===== the version the app believes it is =====
+//
+// The bundle cannot read Android's versionName without a native plugin, so it
+// carries its own copy in dt-app.json, and the update check compares THAT with
+// what the restaurant published in customer_apps. Two places holding one number
+// is a drift waiting to happen — so both are written here, together, and never
+// separately. tools/check.mjs fails the build if they ever disagree.
+if (app.bundled) {
+  const rel = 'app/src/main/assets/public/dt-app.json';
+  const full = join(appDir, rel);
+  const current = existsSync(full) ? JSON.parse(readFileSync(full, 'utf8')) : {};
+  const next = {
+    tenantId: opt.tenant || current.tenantId || null,
+    appVersion: opt.version || current.appVersion || null,
+  };
+  writeFileSync(full, JSON.stringify(next, null, 2) + '\n', 'utf8');
+  console.log(`[brand] updated ${rel} (version ${next.appVersion ?? 'unset'})`);
+
+  if (opt.version) {
+    const gradleVersion = /versionName\s+"([^"]+)"/.exec(
+      readFileSync(join(appDir, 'app/build.gradle'), 'utf8'))?.[1];
+    if (gradleVersion !== opt.version) {
+      console.error(`[brand] versionName is ${gradleVersion} but the bundle says ${opt.version}`);
+      process.exit(1);
+    }
+  }
 }
 
 console.log(`\n[brand] ${appKey} is branded:`);

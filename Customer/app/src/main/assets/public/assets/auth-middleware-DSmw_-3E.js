@@ -1,1 +1,0 @@
-import{i as e}from"./index-B4f6p3_0.js";var t=e({type:`function`});export{t};

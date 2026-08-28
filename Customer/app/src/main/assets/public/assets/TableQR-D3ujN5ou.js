@@ -1,1 +1,0 @@
-import{i as e}from"./TablesPage-D2GIiSv2.js";export{e as buildTableOrderUrl};
