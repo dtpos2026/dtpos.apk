@@ -35,6 +35,24 @@
         </provider>
     </application>
 
+    <!--
+      ===== v1.28.7 — the permissions the app actually exercises =====
+
+      ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION
+        OrderTakerPortalPage imports hasLocationConsent / startLocationTracking
+        from staffLocation, so this app reports its position exactly as the
+        rider app does — and was missing the permissions that make the runtime
+        request possible at all.
+
+      VIBRATE
+        ReadyNotificationBus vibrates when an order is ready.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

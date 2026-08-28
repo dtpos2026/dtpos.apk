@@ -23,9 +23,17 @@ const ok = (m) => console.log(`  ok    ${m}`);
 const bad = (m) => { failed = true; console.log(`  FAIL  ${m}`); };
 
 const APPS = [
-  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true, push: true },
-  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false, push: false, location: true },
-  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false, push: false },
+  // `needs` is what the WEB CODE actually calls in that app. A dangerous
+  // permission the manifest never declares cannot even be REQUESTED at runtime,
+  // so the browser prompt is refused outright and the feature silently never
+  // works — which is exactly how the customer app shipped with no way to allow
+  // location at all.
+  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
+  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
+  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
 ];
 
 console.log('[check] the vendored Capacitor runtime\n');
@@ -176,17 +184,31 @@ for (const app of APPS) {
 
   // ---- permissions the app genuinely needs
   const manifest = readFileSync(join(d, 'app/src/main/AndroidManifest.xml'), 'utf8');
-  if (!manifest.includes('android.permission.INTERNET')) bad('INTERNET is not declared');
-  else ok('INTERNET declared');
-  if (app.location) {
-    if (!manifest.includes('ACCESS_FINE_LOCATION')) {
-      bad('the rider app reports its position, but ACCESS_FINE_LOCATION is not declared —\n' +
-          '        the WebView geolocation request is refused and tracking never starts');
-    } else ok('location permissions declared');
+  const missingPerms = app.needs.filter(p => !manifest.includes(`android.permission.${p}`));
+  if (missingPerms.length) {
+    bad(`not declared: ${missingPerms.join(', ')}\n` +
+        '        A dangerous permission the manifest omits cannot be REQUESTED at\n' +
+        '        runtime, so the prompt is refused and the user cannot allow it.');
+  } else ok(`declares all ${app.needs.length} permissions its code uses`);
+
+  // Location must be optional, or Play hides the app from every device with no
+  // GPS. It fills in an address; it is not what the app is for.
+  if (app.needs.includes('ACCESS_FINE_LOCATION')) {
+    if (/uses-feature[^>]*android\.hardware\.location[^>]*required="false"/.test(manifest)) {
+      ok('location declared optional, so GPS-less devices can still install');
+    } else {
+      bad('android.hardware.location is not declared optional — Play will hide the\n' +
+          '        app from devices without GPS');
+    }
   }
-  if (app.push && !manifest.includes('POST_NOTIFICATIONS')) {
-    bad('POST_NOTIFICATIONS is not declared — Android 13+ refuses every notification');
-  } else if (app.push) ok('POST_NOTIFICATIONS declared');
+
+  // The reverse mistake: a permission nothing uses. Android shows it to the
+  // user and Play asks about it, so an unearned one costs trust for nothing.
+  for (const declared of new Set(Array.from(manifest.matchAll(/android\.permission\.([A-Z_]+)/g), m => m[1]))) {
+    if (!app.needs.includes(declared) && declared !== 'ACCESS_NETWORK_STATE') {
+      bad(`${declared} is declared but nothing in this app uses it`);
+    }
+  }
 
   // ---- launcher icons, at every density
   const missing = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'].filter(den =>

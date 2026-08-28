@@ -35,15 +35,32 @@
         </provider>
     </application>
 
+    <!--
+      ===== v1.28.7 — the permissions the app actually exercises =====
+
+      ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION
+        The rider screen calls navigator.geolocation.watchPosition to report
+        the delivery position, and staffLocation tracks it while on duty.
+        Capacitor's BridgeWebChromeClient requests the Android permission at
+        runtime when the WebView asks — but a permission the manifest never
+        declared cannot be requested, so the request would be refused outright
+        and live tracking would silently never start.
+
+        ACCESS_BACKGROUND_LOCATION is deliberately NOT declared. Tracking runs
+        while the rider has the app open; asking for the background grant
+        triggers a far heavier consent flow and a Play policy review for
+        something this app does not do.
+
+      VIBRATE
+        ReadyNotificationBus vibrates when an order is ready. A normal
+        permission — no prompt — but absent it does nothing, silently.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!--
-      The rider screen calls navigator.geolocation.watchPosition to report the
-      delivery position. Capacitor's BridgeWebChromeClient answers the WebView's
-      geolocation prompt by requesting these at runtime, so without them
-      declared here the request is refused outright and live tracking silently
-      never starts.
-    -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

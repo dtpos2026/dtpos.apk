@@ -44,15 +44,46 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!--
+      ===== v1.28.7 — the permissions the app actually exercises =====
 
+      INTERNET / ACCESS_NETWORK_STATE
+        Everything the app does is a request to the restaurant's server.
+
+      ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION
+        REPORTED: "location permission maangta hai, deny karta hai access,
+        allow hi nahi kar sakte." The customer screen calls
+        navigator.geolocation.getCurrentPosition to fill in a delivery address
+        (OnlineOrderPage). Capacitor's BridgeWebChromeClient answers the
+        WebView's geolocation prompt by requesting the Android permission at
+        runtime — but a permission the manifest never declared CANNOT be
+        requested, so the prompt was refused outright and there was no way for
+        the customer to allow it. Declaring them is what makes the dialog
+        appear at all.
+
+      POST_NOTIFICATIONS
+        Android 13+ requires an explicit grant before an app may post a
+        notification. Without it the request PushNotifications.requestPermissions()
+        makes is refused, and the customer never sees "your order is on the way".
+
+      VIBRATE
+        ReadyNotificationBus calls navigator.vibrate when an order changes
+        state. A normal permission — granted at install, no prompt — but
+        absent it simply does nothing, silently.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!--
-      Android 13 (API 33) and above require an explicit runtime grant before an
-      app may post a notification. Without this line the runtime request that
-      PushNotifications.requestPermissions() makes is refused outright, and the
-      customer never sees "your order is on the way".
+      Location is used to fill in an address, not to find the restaurant. A
+      device with no GPS hardware must still be able to install and order, so
+      this is declared optional rather than required — Play would otherwise
+      hide the app from those devices entirely.
     -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

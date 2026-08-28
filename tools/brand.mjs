@@ -31,6 +31,9 @@
 //       Everything given by hand, no network. Any flag overrides the database.
 //
 // Optional: --version 1.4.0 --version-code 7 --site https://example.com
+//           --icon-bg "#451573"   the tile behind the icon. Taken from the
+//                                 restaurant's theme colour when --tenant is
+//                                 given and this is not.
 //
 // The icon may be a local path or an http(s) URL; PNG only. It is written out
 // at all five densities, as both the legacy square icon and the adaptive-icon
@@ -91,6 +94,7 @@ if (opt.tenant && !UUID.test(opt.tenant)) {
 // --------------------------------------------------- the restaurant's identity
 let appName = opt.name || '';
 let iconSource = opt.icon || '';
+let themeColor = opt['icon-bg'] || '';
 
 if (opt.tenant) {
   console.log(`[brand] reading the restaurant's app config from the database`);
@@ -117,6 +121,9 @@ if (opt.tenant) {
   // editing its live configuration.
   appName = appName || c.appName || c.app_name || '';
   iconSource = iconSource || c.iconUrl || c.icon_url || c.logoUrl || c.logo_url || '';
+  // The restaurant's own colour becomes the icon's background, so the launcher
+  // icon matches the app it opens instead of sitting on a stock white tile.
+  themeColor = themeColor || c.theme?.primary || c.theme?.primaryColor || '';
   console.log(`[brand] database says: name="${appName || '(none)'}" icon=${iconSource || '(none)'}`);
 }
 
@@ -158,6 +165,13 @@ function edit(rel, fn) {
   if (after !== before) { writeFileSync(full, after, 'utf8'); console.log(`[brand] updated ${rel}`); }
 }
 
+/** "#451573", "451573" and "#451573ff" all mean the same tile. */
+function normalizeHex(v) {
+  const m = /^#?([0-9a-f]{6})(?:[0-9a-f]{2})?$/i.exec(String(v ?? '').trim());
+  return m ? `#${m[1].toUpperCase()}` : null;
+}
+const hexToRgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+
 const xmlEscape = (s) => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
@@ -195,14 +209,33 @@ if (iconSource) {
     );
   }
 
+  // ===== the tile behind the logo =====
+  //
+  // Android 8+ draws an adaptive icon as a foreground over a background, and
+  // the launcher crops the pair to whatever shape the phone uses. The stock
+  // background is white, which leaves a restaurant's mark floating on a tile
+  // that belongs to no brand at all. Painting it the app's own colour is what
+  // makes the icon look like the app.
+  const bg = normalizeHex(themeColor);
+  if (bg) {
+    edit('app/src/main/res/values/ic_launcher_background.xml', (raw) =>
+      raw.replace(/(<color name="ic_launcher_background">)[^<]*(<\/color>)/, `$1${bg}$2`));
+    console.log(`[brand] icon background ${bg}`);
+  }
+
   for (const [density, iconPx, fgPx] of DENSITIES) {
     const dir = join(appDir, 'app/src/main/res', `mipmap-${density}`);
     mkdirSync(dir, { recursive: true });
     // The legacy square icon (API 24-25) is drawn edge to edge; the adaptive
     // foreground (API 26+) keeps the 66% safe margin, because launchers crop
     // it to a circle or a squircle and anything outside that is lost.
-    writeFileSync(join(dir, 'ic_launcher.png'), encodePng(squareCanvas(img, iconPx, 1.0)));
-    writeFileSync(join(dir, 'ic_launcher_round.png'), encodePng(squareCanvas(img, iconPx, 1.0)));
+    // Android 7 and below have no adaptive icon and draw ic_launcher as-is, so
+    // the background is composited into it here. Android 8+ ignores these and
+    // uses the foreground over the colour above, which is why the foreground
+    // stays transparent and keeps its 66% safe margin.
+    const legacy = squareCanvas(img, iconPx, 0.86, bg ? hexToRgb(bg) : null);
+    writeFileSync(join(dir, 'ic_launcher.png'), encodePng(legacy));
+    writeFileSync(join(dir, 'ic_launcher_round.png'), encodePng(legacy));
     writeFileSync(join(dir, 'ic_launcher_foreground.png'), encodePng(squareCanvas(img, fgPx, 0.66)));
   }
   console.log(`[brand] wrote launcher icons at ${DENSITIES.length} densities`);
