@@ -5,3 +5,9 @@ include ':app'
 // `cap sync`. See docs/WHY-VENDORED.md.
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../libs/capacitor')
+
+// v1.29.9 — the push plugin, vendored the same way as the runtime. Without it
+// @capacitor/push-notifications in the web bundle finds nothing on the native
+// side and registration fails, so the rider's phone can never be reached.
+include ':capacitor-push-notifications'
+project(':capacitor-push-notifications').projectDir = new File('../libs/capacitor-push-notifications')

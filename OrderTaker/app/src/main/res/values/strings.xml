@@ -4,4 +4,6 @@
     <string name="title_activity_main">DT Order Taker</string>
     <string name="package_name">com.digitaltarget.dtordertaker</string>
     <string name="custom_url_scheme">com.digitaltarget.dtordertaker</string>
+    <string name="order_channel_name">Order alerts</string>
+    <string name="order_channel_description">Alerts when a new order needs to be taken.</string>
 </resources>

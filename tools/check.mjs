@@ -28,12 +28,17 @@ const APPS = [
   // so the browser prompt is refused outright and the feature silently never
   // works — which is exactly how the customer app shipped with no way to allow
   // location at all.
-  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true,
+  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true, push: true,
     needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
-  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false,
-    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
-  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false,
-    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
+  // v1.29.9 — POST_NOTIFICATIONS joins the staff apps. RiderAppPage and
+  // OrderTakerPortalPage both call portalRegisterPush(), which asks
+  // PushNotifications for the permission; a permission the manifest never
+  // declared cannot be requested, so the ask was refused outright and the
+  // rider had no way to say yes.
+  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false, push: true,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
+  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false, push: true,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
 ];
 
 console.log('[check] the vendored Capacitor runtime\n');
@@ -207,6 +212,49 @@ for (const app of APPS) {
   for (const declared of new Set(Array.from(manifest.matchAll(/android\.permission\.([A-Z_]+)/g), m => m[1]))) {
     if (!app.needs.includes(declared) && declared !== 'ACCESS_NETWORK_STATE') {
       bad(`${declared} is declared but nothing in this app uses it`);
+    }
+  }
+
+  // ---- push wiring must be complete, or the permission is a lie
+  //
+  // v1.29.9. Declaring POST_NOTIFICATIONS while the native plugin is absent is
+  // the worst of both: Play asks the user about a permission, and
+  // @capacitor/push-notifications in the web bundle still finds nothing to talk
+  // to. All four pieces have to be present together.
+  if (app.needs.includes('POST_NOTIFICATIONS')) {
+    const missingWiring = [];
+    const settingsAll = readFileSync(join(d, 'settings.gradle'), 'utf8')
+      + (existsSync(join(d, 'capacitor.settings.gradle'))
+          ? readFileSync(join(d, 'capacitor.settings.gradle'), 'utf8') : '');
+    if (!settingsAll.includes("include ':capacitor-push-notifications'")) {
+      missingWiring.push('the module is not included in settings.gradle');
+    }
+    const appGradleAll = readFileSync(join(d, 'app/build.gradle'), 'utf8')
+      + (existsSync(join(d, 'app/capacitor.build.gradle'))
+          ? readFileSync(join(d, 'app/capacitor.build.gradle'), 'utf8') : '');
+    if (!appGradleAll.includes("project(':capacitor-push-notifications')")) {
+      missingWiring.push('app/build.gradle does not depend on it');
+    }
+    const pluginsPath = join(d, 'app/src/main/assets/capacitor.plugins.json');
+    if (!existsSync(pluginsPath)) {
+      missingWiring.push('capacitor.plugins.json is missing');
+    } else if (!readFileSync(pluginsPath, 'utf8').includes('PushNotificationsPlugin')) {
+      missingWiring.push('capacitor.plugins.json does not register the plugin');
+    }
+    const mainActivity = join(d, 'app/src/main/java', app.pkg.replaceAll('.', '/'), 'MainActivity.java');
+    const activitySrc = existsSync(mainActivity) ? readFileSync(mainActivity, 'utf8') : '';
+    if (!activitySrc.includes('dt_orders')) {
+      // From API 26 a notification posted to a channel that was never created
+      // is dropped without a word.
+      missingWiring.push('MainActivity never creates the dt_orders channel');
+    }
+    if (!manifest.includes('default_notification_channel_id')) {
+      missingWiring.push('no default notification channel declared in the manifest');
+    }
+    if (missingWiring.length) {
+      bad(`push is declared but not wired: ${missingWiring.join('; ')}`);
+    } else {
+      ok('push wiring complete (module, dependency, plugin registry, channel)');
     }
   }
 
