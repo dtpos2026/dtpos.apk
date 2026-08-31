@@ -28,21 +28,19 @@ const APPS = [
   // so the browser prompt is refused outright and the feature silently never
   // works — which is exactly how the customer app shipped with no way to allow
   // location at all.
-  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true, push: true,
-    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
-  // v1.29.9 — POST_NOTIFICATIONS joins the staff apps. RiderAppPage and
-  // OrderTakerPortalPage both call portalRegisterPush(), which asks
-  // PushNotifications for the permission; a permission the manifest never
-  // declared cannot be requested, so the ask was refused outright and the
-  // rider had no way to say yes.
-  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false, push: true,
-    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
-  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false, push: true,
-    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'] },
+  { dir: 'Customer', pkg: 'com.digitaltarget.dtcustomer', bundled: true,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
+  // v1.30.0 — POST_NOTIFICATIONS is gone again, along with FCM. Nothing in any
+  // of the three apps can post a notification now, so declaring it would be
+  // asking the user for a permission the app cannot use.
+  { dir: 'Rider', pkg: 'com.digitaltarget.dtrider', bundled: false,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
+  { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false,
+    needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
 ];
 
 console.log('[check] the vendored Capacitor runtime\n');
-for (const lib of ['libs/capacitor', 'libs/capacitor-push-notifications']) {
+for (const lib of ['libs/capacitor']) {
   if (existsSync(join(ROOT, lib, 'build.gradle'))) ok(`${lib}/build.gradle`);
   else bad(`${lib}/build.gradle is missing — no app can resolve :capacitor-android`);
 }
@@ -215,46 +213,45 @@ for (const app of APPS) {
     }
   }
 
-  // ---- push wiring must be complete, or the permission is a lie
+  // ---- Firebase must stay out
   //
-  // v1.29.9. Declaring POST_NOTIFICATIONS while the native plugin is absent is
-  // the worst of both: Play asks the user about a permission, and
-  // @capacitor/push-notifications in the web bundle still finds nothing to talk
-  // to. All four pieces have to be present together.
-  if (app.needs.includes('POST_NOTIFICATIONS')) {
-    const missingWiring = [];
-    const settingsAll = readFileSync(join(d, 'settings.gradle'), 'utf8')
-      + (existsSync(join(d, 'capacitor.settings.gradle'))
-          ? readFileSync(join(d, 'capacitor.settings.gradle'), 'utf8') : '');
-    if (!settingsAll.includes("include ':capacitor-push-notifications'")) {
-      missingWiring.push('the module is not included in settings.gradle');
+  // v1.30.0. Instructed twice: "Firebase ye q ha?? del — Supabase he lgy."
+  // The only Firebase left in this repository was FCM, pulled in by
+  // @capacitor/push-notifications. It is gone, and this is what stops it
+  // drifting back in one file at a time — a Gradle classpath here, a plugin
+  // include there, and the project quietly depends on Google again.
+  {
+    const firebaseHits = [];
+    const scan = [
+      ['settings.gradle', join(d, 'settings.gradle')],
+      ['capacitor.settings.gradle', join(d, 'capacitor.settings.gradle')],
+      ['build.gradle', join(d, 'build.gradle')],
+      ['app/build.gradle', join(d, 'app/build.gradle')],
+      ['app/capacitor.build.gradle', join(d, 'app/capacitor.build.gradle')],
+      ['AndroidManifest.xml', join(d, 'app/src/main/AndroidManifest.xml')],
+      ['capacitor.plugins.json', join(d, 'app/src/main/assets/capacitor.plugins.json')],
+    ];
+    for (const [label, file] of scan) {
+      if (!existsSync(file)) continue;
+      const text = readFileSync(file, 'utf8');
+      // The MainActivity comment says the word while explaining its absence,
+      // so only build files and the manifest are scanned, never prose.
+      for (const needle of ['google-services', 'com.google.firebase', 'firebase-messaging',
+                            'push-notifications', 'PushNotificationsPlugin',
+                            'POST_NOTIFICATIONS', 'firebase.messaging']) {
+        if (text.includes(needle)) firebaseHits.push(`${label}: ${needle}`);
+      }
     }
-    const appGradleAll = readFileSync(join(d, 'app/build.gradle'), 'utf8')
-      + (existsSync(join(d, 'app/capacitor.build.gradle'))
-          ? readFileSync(join(d, 'app/capacitor.build.gradle'), 'utf8') : '');
-    if (!appGradleAll.includes("project(':capacitor-push-notifications')")) {
-      missingWiring.push('app/build.gradle does not depend on it');
+    if (existsSync(join(ROOT, 'libs/capacitor-push-notifications'))) {
+      firebaseHits.push('libs/capacitor-push-notifications is back');
     }
-    const pluginsPath = join(d, 'app/src/main/assets/capacitor.plugins.json');
-    if (!existsSync(pluginsPath)) {
-      missingWiring.push('capacitor.plugins.json is missing');
-    } else if (!readFileSync(pluginsPath, 'utf8').includes('PushNotificationsPlugin')) {
-      missingWiring.push('capacitor.plugins.json does not register the plugin');
+    if (existsSync(join(d, 'app/google-services.json'))) {
+      firebaseHits.push('app/google-services.json is back');
     }
-    const mainActivity = join(d, 'app/src/main/java', app.pkg.replaceAll('.', '/'), 'MainActivity.java');
-    const activitySrc = existsSync(mainActivity) ? readFileSync(mainActivity, 'utf8') : '';
-    if (!activitySrc.includes('dt_orders')) {
-      // From API 26 a notification posted to a channel that was never created
-      // is dropped without a word.
-      missingWiring.push('MainActivity never creates the dt_orders channel');
-    }
-    if (!manifest.includes('default_notification_channel_id')) {
-      missingWiring.push('no default notification channel declared in the manifest');
-    }
-    if (missingWiring.length) {
-      bad(`push is declared but not wired: ${missingWiring.join('; ')}`);
+    if (firebaseHits.length) {
+      bad(`Firebase has crept back in: ${firebaseHits.join('; ')}`);
     } else {
-      ok('push wiring complete (module, dependency, plugin registry, channel)');
+      ok('no Firebase: no FCM, no google-services, no push plugin');
     }
   }
 

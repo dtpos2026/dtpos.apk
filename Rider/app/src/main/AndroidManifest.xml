@@ -24,15 +24,6 @@
 
         </activity>
 
-        <!--
-          Messages sent by push-dispatch carry channel_id "dt_orders"; this is
-          the fallback for anything that arrives without one, so a notification
-          is never dropped into a channel that does not exist.
-        -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="dt_orders" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -63,20 +54,11 @@
       VIBRATE
         ReadyNotificationBus vibrates when an order is ready. A normal
         permission — no prompt — but absent it does nothing, silently.
-
-      POST_NOTIFICATIONS  (v1.29.9)
-        Android 13+ refuses to post a notification until the user has granted
-        this, and a permission the manifest never declared cannot even be
-        REQUESTED — so PushNotifications.requestPermissions() was refused
-        outright and there was no way for the rider to say yes. The Customer
-        app has carried this since v1.28.7; these two were left behind, which
-        is why no alert ever arrived when a delivery is assigned.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <uses-feature android:name="android.hardware.location" android:required="false" />

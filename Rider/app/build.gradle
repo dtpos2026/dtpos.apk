@@ -47,17 +47,4 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    implementation project(':capacitor-push-notifications')
-}
-
-// Applied only when the Firebase configuration is actually present. A build
-// without google-services.json still succeeds and simply has no push, rather
-// than failing with an error that says nothing about the missing file.
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

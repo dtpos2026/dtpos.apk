@@ -24,15 +24,6 @@
 
         </activity>
 
-        <!--
-          Messages sent by push-dispatch carry channel_id "dt_orders"; this is
-          the fallback for anything that arrives without one, so a notification
-          is never dropped into a channel that does not exist.
-        -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="dt_orders" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -60,22 +51,11 @@
         requested, so the prompt was refused outright and there was no way for
         the customer to allow it. Declaring them is what makes the dialog
         appear at all.
-
-      POST_NOTIFICATIONS
-        Android 13+ requires an explicit grant before an app may post a
-        notification. Without it the request PushNotifications.requestPermissions()
-        makes is refused, and the customer never sees "your order is on the way".
-
-      VIBRATE
-        ReadyNotificationBus calls navigator.vibrate when an order changes
-        state. A normal permission — granted at install, no prompt — but
-        absent it simply does nothing, silently.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!--

@@ -1,10 +1,5 @@
 package com.digitaltarget.dtordertaker;
 
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.os.Build;
-import android.os.Bundle;
-
 import com.getcapacitor.BridgeActivity;
 
 /**
@@ -17,39 +12,11 @@ import com.getcapacitor.BridgeActivity;
  *
  * Capacitor's BridgeActivity rather than a hand-written WebView, because it
  * already answers what a bare WebView gets wrong -- the geolocation permission
- * prompt, the file chooser, back-button handling, the hardened settings -- and
- * it is the same runtime the Customer app is built on, so there is one thing
- * to understand here, not two.
+ * prompt, the file chooser, back-button handling, the hardened settings.
  *
- * v1.29.9 adds the notification channel. From Android 8 (API 26) a
- * notification posted to a channel that was never created is dropped without a
- * word, so "dt_orders" — the channel_id push-dispatch addresses, and the
- * default declared in the manifest — has to exist before the first message
- * lands. Creating a channel that already exists is a no-op, so running this on
- * every launch is safe.
+ * v1.30.0 removed the notification channel and the push plugin along with FCM.
+ * Firebase is out of this project entirely; the alerting that remains is the
+ * app's own, over Supabase, while the app is open.
  */
 public class MainActivity extends BridgeActivity {
-
-    private static final String ORDER_CHANNEL_ID = "dt_orders";
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        createOrderChannel();
-    }
-
-    private void createOrderChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager == null) return;
-
-        NotificationChannel channel = new NotificationChannel(
-                ORDER_CHANNEL_ID,
-                getString(R.string.order_channel_name),
-                NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription(getString(R.string.order_channel_description));
-        channel.enableVibration(true);
-        manager.createNotificationChannel(channel);
-    }
 }

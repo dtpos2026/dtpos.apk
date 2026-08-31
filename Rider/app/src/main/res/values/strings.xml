@@ -4,6 +4,4 @@
     <string name="title_activity_main">DT Rider</string>
     <string name="package_name">com.digitaltarget.dtrider</string>
     <string name="custom_url_scheme">com.digitaltarget.dtrider</string>
-    <string name="order_channel_name">Order alerts</string>
-    <string name="order_channel_description">Alerts when a delivery is assigned to you.</string>
 </resources>
