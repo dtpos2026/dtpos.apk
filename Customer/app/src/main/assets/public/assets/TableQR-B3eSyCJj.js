@@ -1,1 +1,0 @@
-import{i as e}from"./TablesPage-BJFVmOhI.js";export{e as buildTableOrderUrl};

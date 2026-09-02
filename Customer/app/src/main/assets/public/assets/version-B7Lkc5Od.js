@@ -1,1 +1,0 @@
-import{Nt as e}from"./App-Bv3y62DW.js";export{e as getInstalledVersion};

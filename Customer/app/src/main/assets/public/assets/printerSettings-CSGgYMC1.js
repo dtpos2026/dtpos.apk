@@ -1,1 +1,0 @@
-import{$ as e,Q as t}from"./App-Bv3y62DW.js";export{t as loadPrinterSettings,e as resolvePrinterForRole};
