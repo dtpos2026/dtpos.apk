@@ -1,0 +1,1 @@
+import{t as e}from"./createServerFn-BWfYIcLi.js";import{s as t}from"./index-BhjufWiA.js";import{t as n}from"./auth-middleware-BWjqpwOf.js";var r=e({method:`POST`}).middleware([n]).handler(t(`6a332330931f3bdf5c688c04875c326671abb399554c3566949156f0a5760f9c`));export{r as provisionRestaurantOwner};

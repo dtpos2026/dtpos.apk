@@ -73,6 +73,36 @@ if (boot) {
   }
 }
 
+// ===== the app's version is the APP's, not the POS repository's =====
+//
+// dist/client/dt-app.json carries the POS repo's package.json version, because
+// that is the only version build:app knows about. But that number is the POS
+// web app's, and this is a different product with its own release line — the
+// Android versionName, which is also what the restaurant publishes in
+// customer_apps.app_version and what the in-app update check compares against.
+//
+// Copying the POS number in made the two disagree, and tools/check.mjs failed
+// the build every single time --refresh-bundle was used:
+//
+//     FAIL  dt-app.json says 1.25.2 but versionName is 1.0.0.
+//
+// Left alone it would be worse than a failed build: an app believing it is
+// 1.25.2 while the restaurant published 1.0.0 is an app that can never be told
+// it is out of date.
+//
+// So the version is preserved across a refresh exactly as the opening route is.
+const gradlePath = join(ROOT, 'Customer/app/build.gradle');
+const versionName = /versionName\s+"([^"]+)"/.exec(readFileSync(gradlePath, 'utf8'))?.[1];
+const appJsonPath = join(DEST, 'dt-app.json');
+if (versionName && existsSync(appJsonPath)) {
+  const cfg = JSON.parse(readFileSync(appJsonPath, 'utf8'));
+  if (cfg.appVersion !== versionName) {
+    console.log(`[refresh] the bundle said version ${cfg.appVersion ?? 'unset'}; this app is ${versionName} — keeping ${versionName}`);
+    cfg.appVersion = versionName;
+    writeFileSync(appJsonPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  }
+}
+
 const size = (dir) => readdirSync(dir, { withFileTypes: true }).reduce(
   (n, e) => n + (e.isDirectory() ? size(join(dir, e.name)) : statSync(join(dir, e.name)).size), 0);
 
