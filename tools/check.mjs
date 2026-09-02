@@ -47,8 +47,28 @@ for (const lib of ['libs/capacitor']) {
 
 // A Capacitor project's own .gitignore excludes the very directories this
 // repository must keep. One copied back in is the whole bug, silently.
+//
+// A NESTED CHECKOUT IS NOT OUR TREE
+//
+// The workflow's refresh_bundle option checks the POS repository out into
+// pos/, inside this workspace. That repository has .gitignore files of its
+// own — its root one, and the Capacitor project it also carries — and this
+// walk reported all three as strays:
+//
+//     FAIL  a nested .gitignore would hide committed build inputs:
+//           pos/.gitignore, pos/android/Customer/.gitignore, ...
+//
+// which failed every refresh_bundle run before Gradle was ever reached. Those
+// files govern that repository, not this one, and deleting them (what the
+// message tells you to do) would be wrong.
+//
+// Skipping the NAME '.git' was never enough: that hides the directory itself
+// while still descending into the checkout around it. A directory holding a
+// .git entry is a separate repository, so nothing inside it is a build input
+// of ours.
 const strays = [];
 (function walk(dir) {
+  if (dir !== ROOT && existsSync(join(dir, '.git'))) return;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name === '.git' || e.name === 'build' || e.name === '.gradle') continue;
     const p = join(dir, e.name);
