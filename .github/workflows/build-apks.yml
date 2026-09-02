@@ -83,17 +83,68 @@ jobs:
         with:
           node-version: 22
 
+      # ===== an unset secret was blanking the backend =====
+      #
+      # These used to be passed straight into the build step's env. A secret
+      # that was never set arrives as an EMPTY STRING, and an empty VITE_*
+      # variable OVERRIDES the committed .env — so the bundle was compiled with
+      # no Supabase configuration at all.
+      #
+      # The APK that produced looks fine and cannot work: isSupabaseConfigured()
+      # goes false, and customerAccount.ts turns that into the message
+      #
+      #     "You are offline. Connect to sign in."
+      #
+      # shown to a customer with full signal, on sign-up and on login alike.
+      # Reported exactly that way. Proven by building the bundle twice, once
+      # with the committed .env and once with empty variables: the second
+      # carries no supabase.co URL anywhere in dist/client/assets.
+      #
+      # The desktop repo hit this same bug and fixed it in v1.28.6; this
+      # workflow never got the fix. Exporting only what is actually set lets
+      # the committed .env stand.
+      - name: Resolve the Supabase build configuration
+        if: ${{ inputs.refresh_bundle }}
+        shell: bash
+        env:
+          S_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          S_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -n "$S_URL" ]; then
+            echo "VITE_SUPABASE_URL=$S_URL" >> "$GITHUB_ENV"
+            echo "using VITE_SUPABASE_URL from repository secrets"
+          else
+            echo "no VITE_SUPABASE_URL secret — the committed .env will be used"
+          fi
+          if [ -n "$S_KEY" ]; then
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$S_KEY" >> "$GITHUB_ENV"
+            echo "VITE_SUPABASE_ANON_KEY=$S_KEY" >> "$GITHUB_ENV"
+          fi
+
       - name: Rebuild the Customer web bundle
         if: ${{ inputs.refresh_bundle }}
         working-directory: pos
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           DT_APP_TENANT: ${{ inputs.tenant_id }}
         run: |
           npm ci
           npm run build:app
+
+      # Proving it rather than trusting the step above. A bundle with no
+      # backend address produces an APK that opens, looks right, and tells
+      # every customer they are offline — which is not something to discover
+      # on a phone.
+      - name: Verify the bundle carries a backend
+        if: ${{ inputs.refresh_bundle }}
+        shell: bash
+        working-directory: pos
+        run: |
+          if grep -rqE 'https://[a-z0-9]+\.supabase\.co' dist/client/assets/*.js; then
+            echo "the bundle carries a Supabase URL"
+          else
+            echo "::error::The Customer bundle was built with NO Supabase configuration. Every sign-in would answer 'You are offline' on a phone with full signal. Check the VITE_SUPABASE_* secrets, or remove them so the committed .env is used."
+            exit 1
+          fi
 
       - name: Copy it in
         if: ${{ inputs.refresh_bundle }}
