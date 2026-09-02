@@ -189,17 +189,38 @@ async function loadIcon(source) {
   return readFileSync(p);
 }
 
+// ===== a logo the launcher cannot use must not cost the restaurant its APK =====
+//
+// The icon is read from the restaurant's own branding, and that logo is
+// whatever they uploaded in the POS — very often a JPEG, which is a perfectly
+// good logo everywhere the app DRAWS it. Only the launcher icon needs a PNG,
+// because it is decoded and rewritten at five densities here.
+//
+// This used to exit(1), so one JPEG made the whole APK unbuildable: no name,
+// no package id, no restaurant binding — for a file that only affects the
+// picture on the home screen. Now it says so loudly and carries on, and the
+// app keeps the icon it already had. Everything else is still branded.
+//
+// Deliberately still loud, and still non-zero-effort to ignore: the build log
+// names the file and says exactly what to do about it.
+let img = null;
 if (iconSource) {
-  let img;
   try {
     img = decodePng(await loadIcon(iconSource));
   } catch (e) {
-    console.error(
-      `[brand] could not read the icon: ${e.message}\n` +
-      `        It must be a PNG. A JPEG or an SVG will not do — convert it first.`,
+    console.warn(
+      `\n[brand] WARNING: the launcher icon was NOT changed.\n` +
+      `        Could not read ${iconSource}\n` +
+      `        ${e.message}\n` +
+      `        The launcher icon must be a PNG — a JPEG or an SVG will not do.\n` +
+      `        The app still shows this logo inside the app; only the icon on\n` +
+      `        the home screen is unaffected. Upload a 512x512 PNG in\n` +
+      `        Super Admin -> Premium Customer Apps and build again.\n`,
     );
-    process.exit(1);
   }
+}
+
+if (img) {
   console.log(`[brand] icon source is ${img.width}x${img.height}`);
   if (img.width < 192 || img.height < 192) {
     console.warn(
@@ -325,5 +346,5 @@ if (app.bundled) {
 console.log(`\n[brand] ${appKey} is branded:`);
 console.log(`    applicationId  ${appId}`);
 console.log(`    launcher name  ${appName || '(unchanged)'}`);
-console.log(`    launcher icon  ${iconSource || '(unchanged)'}`);
+console.log(`    launcher icon  ${img ? iconSource : '(unchanged' + (iconSource ? ' — the logo above is not a PNG)' : ')')}`);
 console.log(`\nBuild it:  open ${app.dir}/ in Android Studio, then Build > Build APK(s)`);
