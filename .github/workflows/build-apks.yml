@@ -36,6 +36,19 @@ on:
         description: 'Rebuild the Customer web bundle from the POS repository'
         type: boolean
         default: false
+      # Android refuses to install a build whose versionCode is not HIGHER than
+      # the installed one. Every app here still ships versionCode 1, so a second
+      # APK cannot update the first on any phone that has it — it fails with
+      # INSTALL_FAILED_VERSION_DOWNGRADE and the customer has to uninstall
+      # first, losing their session. Raise it on every release you hand out.
+      version_code:
+        description: 'Android versionCode — MUST be higher than the installed build (blank = keep)'
+        required: false
+        default: ''
+      app_version:
+        description: 'Version name shown to people, e.g. 1.1.0 (blank = keep)'
+        required: false
+        default: ''
       release:
         description: 'Signed release build instead of debug'
         type: boolean
@@ -88,7 +101,7 @@ jobs:
 
       # ---- brand, when a restaurant was named
       - name: Brand the apps
-        if: ${{ inputs.tenant_id != '' || inputs.app_id != '' }}
+        if: ${{ inputs.tenant_id != '' || inputs.app_id != '' || inputs.version_code != '' || inputs.app_version != '' }}
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
@@ -104,8 +117,14 @@ jobs:
             fi
             tenant_flag=""
             if [ -n "${{ inputs.tenant_id }}" ]; then tenant_flag="--tenant ${{ inputs.tenant_id }}"; fi
+            # The version applies to every app being built, not just the one the
+            # package id was given for: they are released together.
+            ver_flag=""
+            if [ -n "${{ inputs.app_version }}" ]; then ver_flag="--version ${{ inputs.app_version }}"; fi
+            code_flag=""
+            if [ -n "${{ inputs.version_code }}" ]; then code_flag="--version-code ${{ inputs.version_code }}"; fi
             echo "::group::brand $app"
-            node tools/brand.mjs --app "$app" $tenant_flag $id_flag
+            node tools/brand.mjs --app "$app" $tenant_flag $id_flag $ver_flag $code_flag
             echo "::endgroup::"
           done
 
