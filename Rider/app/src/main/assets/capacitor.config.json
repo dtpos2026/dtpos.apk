@@ -4,7 +4,7 @@
   "webDir": "public",
   "server": {
     "androidScheme": "https",
-    "url": "https://digitaltarget.digital/#/rider-portal",
+    "url": "https://digitaltarget.digital/?app=rider#/rider-portal",
     "cleartext": false
   }
 }

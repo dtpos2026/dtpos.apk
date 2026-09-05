@@ -4,7 +4,7 @@
   "webDir": "public",
   "server": {
     "androidScheme": "https",
-    "url": "https://digitaltarget.digital/#/order-taker",
+    "url": "https://digitaltarget.digital/?app=order-taker#/order-taker",
     "cleartext": false
   }
 }

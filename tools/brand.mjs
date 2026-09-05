@@ -290,9 +290,19 @@ edit('app/src/main/assets/capacitor.config.json', (raw) => {
   cfg.appId = appId;
   if (appName) cfg.appName = appName;
   if (opt.site && cfg.server?.url) {
-    // Keep whichever #route this app opens; only the origin moves.
-    const hash = cfg.server.url.includes('#') ? '#' + cfg.server.url.split('#')[1] : '';
-    cfg.server.url = opt.site.replace(/\/+$/, '') + '/' + hash;
+    // Keep whichever ?app= marker and #route this app opens; only the origin
+    // moves.
+    //
+    // The marker matters more than the fragment: since v1.47.0 it is what tells
+    // the site which portal this install is, and Android drops the fragment on
+    // a WebView restore while the query survives. Dropping it here would put
+    // the Order Taker APK back on the POS owner login — the exact bug this was
+    // built to end.
+    const u = cfg.server.url;
+    const hash = u.includes('#') ? '#' + u.split('#')[1] : '';
+    const beforeHash = u.split('#')[0];
+    const query = beforeHash.includes('?') ? '?' + beforeHash.split('?')[1] : '';
+    cfg.server.url = opt.site.replace(/\/+$/, '') + '/' + query + hash;
   }
   return JSON.stringify(cfg, null, 2) + '\n';
 });
