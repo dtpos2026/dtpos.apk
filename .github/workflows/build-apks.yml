@@ -68,7 +68,19 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # setup-android's default is to run `sdkmanager tools` — the LEGACY SDK
+      # Tools package, which Google removed. The action then exits 1 on
+      # "Failed to find package 'tools'" and the build dies 20 seconds in,
+      # before it has looked at a single source file. Nothing in this
+      # repository changed; the hosted toolchain did.
+      #
+      # The runner image already ships the SDK, platform-tools and build-tools
+      # this project needs (it is why the build lives here at all), so the
+      # package list is emptied rather than replaced: nothing to fetch, nothing
+      # to fail on.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       # ---- only when the Customer bundle is being refreshed from the POS repo
       - name: Check out the POS web app
