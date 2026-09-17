@@ -1,0 +1,1 @@
+import{i as e}from"./TablesPage-DJcpfuSo.js";export{e as buildTableOrderUrl};

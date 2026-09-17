@@ -1,0 +1,1 @@
+import{u as e}from"./App-BWxxbzEk.js";export{e as resolveSlugTenant};

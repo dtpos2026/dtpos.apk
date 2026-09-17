@@ -1,0 +1,1 @@
+import{t as e}from"./createServerFn-BK0SOA0R.js";import{s as t}from"./index-Btx6MVqN.js";var n=e({method:`POST`}).handler(t(`765e9ff4c23bcdef67fb7545b965b81328fb5e4b9e8f1c606dd6045bca749ad3`));export{n as uploadCustomerPhoto};

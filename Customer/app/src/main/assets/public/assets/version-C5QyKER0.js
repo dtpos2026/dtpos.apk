@@ -1,0 +1,1 @@
+import{Wt as e}from"./App-BWxxbzEk.js";export{e as getInstalledVersion};
