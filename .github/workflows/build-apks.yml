@@ -172,6 +172,9 @@ jobs:
           set -e
           for app in Customer Rider OrderTaker; do
             if [ "${{ inputs.apps }}" != "all" ] && [ "${{ inputs.apps }}" != "$app" ]; then continue; fi
+            # PAUSED: the Customer app is not part of "all" for now. Pick it in
+            # the dropdown to build it; nothing about the app itself changed.
+            if [ "$app" = "Customer" ] && [ "${{ inputs.apps }}" = "all" ]; then continue; fi
             # The package id is only applied to the app it was given for; the
             # other two must keep their own, or all three collide on one id.
             id_flag=""
@@ -220,6 +223,9 @@ jobs:
           task=${{ inputs.release && 'assembleRelease' || 'assembleDebug' }}
           for app in Customer Rider OrderTaker; do
             if [ "${{ inputs.apps }}" != "all" ] && [ "${{ inputs.apps }}" != "$app" ]; then continue; fi
+            # PAUSED: the Customer app is not part of "all" for now. Pick it in
+            # the dropdown to build it; nothing about the app itself changed.
+            if [ "$app" = "Customer" ] && [ "${{ inputs.apps }}" = "all" ]; then continue; fi
             echo "::group::$app $task"
             (cd "$app" && chmod +x gradlew && ./gradlew --no-daemon "$task")
             echo "::endgroup::"
