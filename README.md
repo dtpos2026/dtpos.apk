@@ -1,10 +1,13 @@
 # DT POS — Android apps
 
-Three Android apps, one restaurant platform.
+Four Android apps, one restaurant platform — **Owner, Rider and Order Taker ship; Customer is parked.**
+
+One click builds all three: **Actions → Build Android APKs → Run workflow** (see [docs/BUILD-ALL.md](docs/BUILD-ALL.md) — it also has the signing-key steps and a phone test checklist). On a PC: `node tools/build-all.mjs`.
 
 | App | Opens | Package | Web bundle |
 |---|---|---|---|
 | **Customer** | that restaurant's ordering site | `com.digitaltarget.dtcustomer` | inside the APK |
+| **Owner** | `#/owner-app` | `com.digitaltarget.dtowner` | live site |
 | **Rider** | `#/rider-portal` | `com.digitaltarget.dtrider` | live site |
 | **OrderTaker** | `#/order-taker` | `com.digitaltarget.dtordertaker` | live site |
 

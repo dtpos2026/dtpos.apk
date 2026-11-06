@@ -1,0 +1,10 @@
+{
+  "appId": "com.digitaltarget.dtowner",
+  "appName": "DT Owner",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https",
+    "url": "https://digitaltarget.digital/?app=owner#/owner-app",
+    "cleartext": false
+  }
+}
