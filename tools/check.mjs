@@ -37,6 +37,10 @@ const APPS = [
     needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
   { dir: 'OrderTaker', pkg: 'com.digitaltarget.dtordertaker', bundled: false,
     needs: ['INTERNET', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'VIBRATE'] },
+  // DT Owner — figures, orders and the menu on the owner's phone. It never reads the phone's position, so it declares no
+  // location permission (and `forbids` makes sure nobody adds one back by copying the Rider manifest).
+  { dir: 'Owner', pkg: 'com.digitaltarget.dtowner', bundled: false,
+    needs: ['INTERNET', 'VIBRATE'], forbids: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'] },
 ];
 
 console.log('[check] the vendored Capacitor runtime\n');
@@ -214,6 +218,11 @@ for (const app of APPS) {
         '        runtime, so the prompt is refused and the user cannot allow it.');
   } else ok(`declares all ${app.needs.length} permissions its code uses`);
 
+  // A permission an app is forbidden to ask for (the Owner app never reads the phone's position).
+  const forbidden = (app.forbids || []).filter(p => manifest.includes(`android.permission.${p}`));
+  if (forbidden.length) bad(`must not declare: ${forbidden.join(', ')} — this app never uses it`);
+  else if ((app.forbids || []).length) ok(`declares none of: ${app.forbids.join(', ')}`);
+
   // Location must be optional, or Play hides the app from every device with no
   // GPS. It fills in an address; it is not what the app is for.
   if (app.needs.includes('ACCESS_FINE_LOCATION')) {
@@ -287,4 +296,4 @@ if (failed) {
   console.error('[check] NOT buildable — fix the FAIL lines above.');
   process.exit(1);
 }
-console.log('[check] all three apps are buildable from a clean clone.');
+console.log('[check] all apps are buildable from a clean clone.');

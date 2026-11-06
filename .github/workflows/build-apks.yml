@@ -14,16 +14,23 @@
 # The only step that needs Node is branding, and only when a restaurant is
 # named. tools/ has no dependencies.
 # ============================================================================
+# THE THREE APPS THAT SHIP: Owner, Rider, Order Taker. The Customer app is parked (customers order on the website), so
+# "all" builds the three and "everything" adds the Customer app. Each app is its own job, so the three build side by side
+# and each one is its own downloadable file: DT-Owner, DT-Rider, DT-OrderTaker.
+#
+# Run it:   Actions -> Build Android APKs -> Run workflow   (pick the branch, leave "apps" on "all")
+# Hand out: set the four ANDROID_* secrets once (docs/BUILD-ALL.md), tick "release", and tick "publish_release" to put
+#           the three signed APKs on a GitHub Release with a stable download link.
 name: Build Android APKs
 
 on:
   workflow_dispatch:
     inputs:
       apps:
-        description: 'Which apps to build'
+        description: 'Which apps to build (all = Owner + Rider + OrderTaker)'
         type: choice
         default: 'all'
-        options: ['all', 'Customer', 'Rider', 'OrderTaker']
+        options: ['all', 'everything', 'Owner', 'Rider', 'OrderTaker', 'Customer']
       tenant_id:
         description: 'Restaurant UUID to brand for (blank = leave as committed)'
         required: false
@@ -37,12 +44,11 @@ on:
         type: boolean
         default: false
       # Android refuses to install a build whose versionCode is not HIGHER than
-      # the installed one. Every app here still ships versionCode 1, so a second
-      # APK cannot update the first on any phone that has it — it fails with
-      # INSTALL_FAILED_VERSION_DOWNGRADE and the customer has to uninstall
-      # first, losing their session. Raise it on every release you hand out.
+      # the installed one (INSTALL_FAILED_VERSION_DOWNGRADE). So the default is
+      # no longer "keep 1": a blank value uses this workflow's run number, which
+      # rises with every run, and each build can update the one before it.
       version_code:
-        description: 'Android versionCode — MUST be higher than the installed build (blank = keep)'
+        description: 'Android versionCode (blank = this run number, which always rises)'
         required: false
         default: ''
       app_version:
@@ -50,16 +56,47 @@ on:
         required: false
         default: ''
       release:
-        description: 'Signed release build instead of debug'
+        description: 'Signed release build instead of debug (needs the ANDROID_* secrets)'
+        type: boolean
+        default: false
+      publish_release:
+        description: 'Also put the APKs on a GitHub Release (needs "release" ticked)'
         type: boolean
         default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: build-apks-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  # Which apps this run builds, as the matrix the next job fans out over.
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.pick.outputs.apps }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          case "${{ inputs.apps }}" in
+            all)        apps='["Owner","Rider","OrderTaker"]' ;;
+            everything) apps='["Owner","Rider","OrderTaker","Customer"]' ;;
+            *)          apps='["${{ inputs.apps }}"]' ;;
+          esac
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Building: $apps"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+    name: build ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,7 +121,7 @@ jobs:
 
       # ---- only when the Customer bundle is being refreshed from the POS repo
       - name: Check out the POS web app
-        if: ${{ inputs.refresh_bundle }}
+        if: ${{ inputs.refresh_bundle && matrix.app == 'Customer' }}
         uses: actions/checkout@v4
         with:
           repository: dtpos2026/digitaltarget.digital
@@ -116,7 +153,7 @@ jobs:
       # workflow never got the fix. Exporting only what is actually set lets
       # the committed .env stand.
       - name: Resolve the Supabase build configuration
-        if: ${{ inputs.refresh_bundle }}
+        if: ${{ inputs.refresh_bundle && matrix.app == 'Customer' }}
         shell: bash
         env:
           S_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -134,7 +171,7 @@ jobs:
           fi
 
       - name: Rebuild the Customer web bundle
-        if: ${{ inputs.refresh_bundle }}
+        if: ${{ inputs.refresh_bundle && matrix.app == 'Customer' }}
         working-directory: pos
         env:
           DT_APP_TENANT: ${{ inputs.tenant_id }}
@@ -147,7 +184,7 @@ jobs:
       # every customer they are offline — which is not something to discover
       # on a phone.
       - name: Verify the bundle carries a backend
-        if: ${{ inputs.refresh_bundle }}
+        if: ${{ inputs.refresh_bundle && matrix.app == 'Customer' }}
         shell: bash
         working-directory: pos
         run: |
@@ -159,37 +196,36 @@ jobs:
           fi
 
       - name: Copy it in
-        if: ${{ inputs.refresh_bundle }}
+        if: ${{ inputs.refresh_bundle && matrix.app == 'Customer' }}
         run: node tools/refresh-bundle.mjs --from pos
 
-      # ---- brand, when a restaurant was named
-      - name: Brand the apps
-        if: ${{ inputs.tenant_id != '' || inputs.app_id != '' || inputs.version_code != '' || inputs.app_version != '' }}
+      # ---- version and brand.
+      #
+      # The version code is ALWAYS set: a blank input means this run's number, so a build handed out today can update the one
+      # handed out last week. The package id and the restaurant only apply to the app they were given for.
+      - name: Set the version (and brand, when a restaurant was named)
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          APP: ${{ matrix.app }}
+          IN_APPS: ${{ inputs.apps }}
+          IN_TENANT: ${{ inputs.tenant_id }}
+          IN_ID: ${{ inputs.app_id }}
+          IN_VERSION: ${{ inputs.app_version }}
+          IN_CODE: ${{ inputs.version_code }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -e
-          for app in Customer Rider OrderTaker; do
-            if [ "${{ inputs.apps }}" != "all" ] && [ "${{ inputs.apps }}" != "$app" ]; then continue; fi
-            # The package id is only applied to the app it was given for; the
-            # other two must keep their own, or all three collide on one id.
-            id_flag=""
-            if [ -n "${{ inputs.app_id }}" ] && [ "${{ inputs.apps }}" = "$app" ]; then
-              id_flag="--id ${{ inputs.app_id }}"
-            fi
-            tenant_flag=""
-            if [ -n "${{ inputs.tenant_id }}" ]; then tenant_flag="--tenant ${{ inputs.tenant_id }}"; fi
-            # The version applies to every app being built, not just the one the
-            # package id was given for: they are released together.
-            ver_flag=""
-            if [ -n "${{ inputs.app_version }}" ]; then ver_flag="--version ${{ inputs.app_version }}"; fi
-            code_flag=""
-            if [ -n "${{ inputs.version_code }}" ]; then code_flag="--version-code ${{ inputs.version_code }}"; fi
-            echo "::group::brand $app"
-            node tools/brand.mjs --app "$app" $tenant_flag $id_flag $ver_flag $code_flag
-            echo "::endgroup::"
-          done
+          code="${IN_CODE:-$RUN_NUMBER}"
+          flags="--version-code $code"
+          if [ -n "$IN_VERSION" ]; then flags="$flags --version $IN_VERSION"; fi
+          if [ -n "$IN_TENANT" ]; then flags="$flags --tenant $IN_TENANT"; fi
+          # The package id is only applied when ONE app was asked for; with several, every app keeps its own id or they
+          # would all collide on one.
+          if [ -n "$IN_ID" ] && [ "$IN_APPS" = "$APP" ]; then flags="$flags --id $IN_ID"; fi
+          echo "brand $APP: $flags"
+          node tools/brand.mjs --app "$APP" $flags
+          echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
 
       # The promise this repository makes -- everything Gradle reads is
       # committed, nothing is generated -- is easy to break by accident and
@@ -218,29 +254,75 @@ jobs:
         run: |
           set -e
           task=${{ inputs.release && 'assembleRelease' || 'assembleDebug' }}
-          for app in Customer Rider OrderTaker; do
-            if [ "${{ inputs.apps }}" != "all" ] && [ "${{ inputs.apps }}" != "$app" ]; then continue; fi
-            echo "::group::$app $task"
-            (cd "$app" && chmod +x gradlew && ./gradlew --no-daemon "$task")
-            echo "::endgroup::"
-          done
+          echo "::group::${{ matrix.app }} $task"
+          (cd "${{ matrix.app }}" && chmod +x gradlew && ./gradlew --no-daemon "$task")
+          echo "::endgroup::"
 
-      - name: Show what was produced
+      # One clearly named file per app, so nobody has to guess which app-debug.apk is which.
+      - name: Name the file
+        id: name
+        shell: bash
         run: |
           set -e
-          found=0
-          for apk in */app/build/outputs/apk/*/*.apk; do
-            [ -e "$apk" ] || continue
-            found=1
-            printf '%-70s %s MB\n' "$apk" "$(du -m "$apk" | cut -f1)"
-          done
-          if [ "$found" = 0 ]; then
-            echo "::error::No APK was produced."
-            exit 1
+          kind=${{ inputs.release && 'release' || 'debug' }}
+          src=$(ls "${{ matrix.app }}"/app/build/outputs/apk/$kind/*.apk | head -n 1)
+          if [ -z "$src" ]; then echo "::error::No APK was produced for ${{ matrix.app }}."; exit 1; fi
+          mkdir -p out
+          dest="out/DT-${{ matrix.app }}-$kind-build${VERSION_CODE}.apk"
+          cp "$src" "$dest"
+          size=$(du -m "$dest" | cut -f1)
+          echo "file=$dest" >> "$GITHUB_OUTPUT"
+          printf '%-60s %s MB\n' "$dest" "$size"
+          if [ "$kind" = "debug" ]; then
+            echo "::notice title=${{ matrix.app }} is signed with a throw-away debug key::It installs, but a later build signed with a different key cannot update it. For an APK you hand out, tick 'release' (see docs/BUILD-ALL.md)."
           fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dtpos-apks
-          path: '*/app/build/outputs/apk/**/*.apk'
+          name: DT-${{ matrix.app }}
+          path: out/*.apk
           if-no-files-found: error
+
+  # One page that says what was built, and (when asked) one Release that holds the three signed APKs.
+  publish:
+    needs: build
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: apks
+          pattern: DT-*
+          merge-multiple: true
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### Android apps built"
+            echo
+            echo "| File | Size |"
+            echo "|---|---|"
+            for f in apks/*.apk; do echo "| \`$(basename "$f")\` | $(du -m "$f" | cut -f1) MB |"; done
+            echo
+            echo "Download each one from **Artifacts** at the bottom of this page."
+            if [ "${{ inputs.release }}" != "true" ]; then
+              echo
+              echo "> These are **debug** builds, signed with a throw-away key. To hand out APKs that can be updated later, set the ANDROID_* secrets once and tick **release** (docs/BUILD-ALL.md)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish a GitHub Release
+        if: ${{ inputs.publish_release && inputs.release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="apps-build${{ github.run_number }}"
+          gh release create "$tag" apks/*.apk \
+            --repo "${{ github.repository }}" \
+            --title "DT apps — build ${{ github.run_number }}" \
+            --notes "Signed release APKs built from ${{ github.sha }}. Install over the previous build; the versionCode rises with every run."
+          echo "Release: https://github.com/${{ github.repository }}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"

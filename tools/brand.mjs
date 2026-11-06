@@ -61,6 +61,7 @@ const APPS = {
   Customer: { dir: 'Customer', defaultId: 'com.digitaltarget.dtcustomer', bundled: true },
   Rider: { dir: 'Rider', defaultId: 'com.digitaltarget.dtrider', bundled: false },
   OrderTaker: { dir: 'OrderTaker', defaultId: 'com.digitaltarget.dtordertaker', bundled: false },
+  Owner: { dir: 'Owner', defaultId: 'com.digitaltarget.dtowner', bundled: false },
 };
 
 // ------------------------------------------------------------------ argv
